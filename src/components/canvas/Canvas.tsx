@@ -8,13 +8,7 @@ const Canvas: React.FC = () => {
   const { init } = useCanvas()
 
   useEffect(() => {
-    const ctx = canvas.current?.getContext('2d')
-    
-    if (ctx && canvas.current) {
-      canvas.current.width = window.innerWidth
-      canvas.current.height = window.innerHeight
-      init(ctx)
-    }
+    init(canvas.current)
   }, [])
 
   return (
