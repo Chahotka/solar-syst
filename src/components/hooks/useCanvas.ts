@@ -9,6 +9,7 @@ import saturnSrc from '../../images/saturn.png';
 import uranusSrc from '../../images/uranus.png';
 import neptuneSrc from '../../images/neptune.png';
 import plutoSrc from '../../images/pluto.png'
+import { useEffect } from 'react';
 
 type CanvasHook = () => {
   init: (canvas: HTMLCanvasElement | null) => void
@@ -45,6 +46,16 @@ export const useCanvas: CanvasHook = () => {
   let position = 0;
   let lastFrameTime = performance.now()
 
+  let scale = .1;
+  let translatePos = {
+    x: 0,
+    y: 0
+  }
+  let scaleMultiplier = 0.98;
+  let startDragOffset = {x: 0, y: 0};
+  let mouseDown = false;
+
+
   const init = (canvas: HTMLCanvasElement | null) => {
     const ctx = canvas?.getContext('2d')
 
@@ -53,9 +64,35 @@ export const useCanvas: CanvasHook = () => {
     const w = canvas.width = window.innerWidth;
     const h = canvas.height = window.innerHeight;
 
+    //EVENTS
+    // event for scaling
+    canvas.addEventListener('wheel', (e) => {
+      if (e.deltaY === 100 || e.deltaX === 100) {
+        scale *= scaleMultiplier
+      }
+      if (e.deltaY === -100 || e.deltaX === -100) {
+        scale /= scaleMultiplier
+      }
+    })
+    // events for dragging
+    canvas.addEventListener('mousedown', (e) => {
+      mouseDown = true;
+      startDragOffset.x = e.clientX - translatePos.x;
+      startDragOffset.y = e.clientY - translatePos.y
+    })
+    canvas.addEventListener('mouseup', () => mouseDown = false)
+    canvas.addEventListener('mouseover', () => mouseDown = false)
+    canvas.addEventListener('mousemove', (e) => {
+      if (mouseDown) {
+        translatePos.x = e.clientX - startDragOffset.x
+        translatePos.y = e.clientY - startDragOffset.y
+      }
+    })
+
+
+
     ctx.translate(w/2, h/2);
 
-    
     sun.src = sunSrc;
     mercury.src = mercurySrc;
     venus.src = venusSrc;
@@ -68,8 +105,9 @@ export const useCanvas: CanvasHook = () => {
     neptune.src = neptuneSrc;
     pluto.src = plutoSrc;
 
+
     Promise.all(planets)
-      .then(() => window.requestAnimationFrame(() => draw(ctx)));
+      .then(() => draw(ctx));
   }
 
   const draw = (ctx: CanvasRenderingContext2D) => {
@@ -82,123 +120,158 @@ export const useCanvas: CanvasHook = () => {
 
     ctx.fillRect(-(w/2), -(h/2), w, h);
 
-    ctx.save();
-      ctx.drawImage(sun, -75, -75, 150, 150);
+    ctx.save()
+      ctx.translate(translatePos.x, translatePos.y)
+      ctx.scale(scale, scale)
+
+      console.log(scale)
+      const sunSize = 1390;
+
+      ctx.save();
+        ctx.drawImage(sun, -sunSize/2, -sunSize/2, sunSize, sunSize);
+      ctx.restore();
+
+      // mercury
+      drawObject({
+        pos: 100,
+        size: 60,
+        speed: {
+          inner: 1,
+          outer: 1.5
+        },
+        offset: 0,
+        object: mercury,
+        ctx
+      })
+
+      drawObject({
+        pos: 200,
+        size: 60,
+        speed: {
+          inner: 2,
+          outer: 2.5
+        },
+        offset: 0,
+        object: venus,
+        ctx
+      })
+
+      drawObject({
+        pos: 300,
+        size: 127,
+        speed: {
+          inner: 3,
+          outer: 3.5
+        },
+        offset: 0,
+        object: earth,
+        ctx
+      })
+      // 6
+      drawObject({
+        pos: 400,
+        size: 60,
+        speed: {
+          inner: 4,
+          outer: 4.5
+        },
+        offset: 0,
+        object: mars,
+        ctx
+      })
+
+      drawObject({
+        pos: 2500,
+        size: 1398,
+        speed: {
+          inner: 3,
+          outer: 5.5
+        },
+        offset: 0,
+        object: jupiter,
+        ctx
+      })
+
+      // draw saturn separete because of WidthxHeight ratio
+      // drawObject({
+      //   pos: 600,
+      //   size: 60,
+      //   speed: {
+      //     inner: 0,
+      //     outer: 0
+      //   },
+      //   offset: 0,
+      //   object: saturn,
+      //   ctx
+      // })
+      const satW = 1164 * 2.073732;
+      const satH = 1164;
+
+      ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+
+        ctx.beginPath();
+          ctx.arc(0, 0, 600, 0, Math.PI * 2);
+        ctx.stroke();
+
+        rotate(0, 1, ctx)
+
+        ctx.translate(0, 600)
+
+        ctx.save();
+        rotate(0, -1, ctx)
+          ctx.drawImage(saturn, -(satW/2), -(satH/2), satW, satH)
+        ctx.restore();
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+
+        ctx.beginPath();
+          ctx.fillRect(-(satH/2), 0, satH, satW/2)
+        ctx.fill();
+      ctx.restore();
+
+      // 9
+      drawObject({
+        pos: 700,
+        size: 507.2,
+        speed: {
+          inner: 0,
+          outer: 0
+        },
+        offset: 0,
+        object: uranus,
+        ctx
+      })
+
+      drawObject({
+        pos: 800,
+        size: 492.4,
+        speed: {
+          inner: 0,
+          outer: 0
+        },
+        offset: 0,
+        object: neptune,
+        ctx
+      })
+
+      drawObject({
+        pos: 900,
+        size: 60,
+        speed: {
+          inner: 0,
+          outer: 0
+        },
+        offset: 0,
+        object: pluto,
+        ctx
+      })
     ctx.restore();
-
-    // mercury
-    drawObject({
-      pos: 100,
-      size: 60,
-      speed: {
-        inner: 1.5,
-        outer: 1
-      },
-      offset: 0,
-      object: mercury,
-      ctx
-    })
-
-    drawObject({
-      pos: 200,
-      size: 60,
-      speed: {
-        inner: 2.5,
-        outer: 2
-      },
-      offset: 0,
-      object: venus,
-      ctx
-    })
-
-    drawObject({
-      pos: 300,
-      size: 60,
-      speed: {
-        inner: 1.7,
-        outer: 3.5
-      },
-      offset: 0,
-      object: earth,
-      ctx
-    })
-    // 6
-    drawObject({
-      pos: 400,
-      size: 60,
-      speed: {
-        inner: 1.5,
-        outer: 3
-      },
-      offset: 0,
-      object: mars,
-      ctx
-    })
-
-    drawObject({
-      pos: 500,
-      size: 60,
-      speed: {
-        inner: 1.3,
-        outer: 2.1
-      },
-      offset: 0,
-      object: jupiter,
-      ctx
-    })
-
-    drawObject({
-      pos: 600,
-      size: 60,
-      speed: {
-        inner: 4.2,
-        outer: 3.8
-      },
-      offset: 0,
-      object: saturn,
-      ctx
-    })
-
-    // 9
-    drawObject({
-      pos: 700,
-      size: 60,
-      speed: {
-        inner: 1.5,
-        outer: 2.6
-      },
-      offset: 0,
-      object: uranus,
-      ctx
-    })
-
-    drawObject({
-      pos: 800,
-      size: 60,
-      speed: {
-        inner: 1.5,
-        outer: 1.1
-      },
-      offset: 0,
-      object: neptune,
-      ctx
-    })
-
-    drawObject({
-      pos: 900,
-      size: 60,
-      speed: {
-        inner: 1.5,
-        outer: 2.9
-      },
-      offset: 0,
-      object: pluto,
-      ctx
-    })
 
     position += motionIncrement;
     window.requestAnimationFrame(() => draw(ctx));
   }
+
 
   const drawObject = ({size, pos, speed, offset, object, ctx }: DrawObjectProps) => {
     // Draw orbit
@@ -220,7 +293,7 @@ export const useCanvas: CanvasHook = () => {
       ctx.restore();
 
       // Draw shadow of object
-      ctx.fillStyle = 'rgba(0, 0, 0, .4)';
+      ctx.fillStyle = 'rgba(0, 0, 0, .7)';
 
       ctx.beginPath();
         ctx.moveTo(0, 0);
@@ -232,6 +305,7 @@ export const useCanvas: CanvasHook = () => {
   const rotate = (offset: number, speedMultiplier: number, ctx: CanvasRenderingContext2D) => {
     ctx.rotate(((position + offset) * speedMultiplier) * (Math.PI / 180));
   }
+
 
   return { init };
 }
