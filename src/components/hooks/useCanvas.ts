@@ -40,100 +40,99 @@ export const useCanvas: CanvasHook = () => {
   const neptune = new Image();
   const pluto = new Image();
 
-  const planets = [sun, mercury, venus, moon, earth, mars, jupiter, saturn, uranus, neptune];
+  const planets = [sun, mercury, venus, moon, earth, mars, jupiter, saturn, uranus, neptune, pluto];
 
-  let speed = 6;
+  let speed = 1;
   let position = 0;
   let lastFrameTime = performance.now()
 
-  let scale = .1;
-  let translatePos = {
-    x: 0,
-    y: 0
-  }
-  let scaleMultiplier = 0.98;
-  let startDragOffset = {x: 0, y: 0};
-  let mouseDown = false;
-
+  let lastX = 0;
+  let lastY = 0;
+  let dragStart: {x: number, y: number} | null = null;
+  let dragged = false;
+  
+  let scaleFactor = 1.1;
 
   const init = (canvas: HTMLCanvasElement | null) => {
     const ctx = canvas?.getContext('2d')
 
     if (!canvas || !ctx) return;
+    trackTransforms(ctx)
 
-    const w = canvas.width = window.innerWidth;
-    const h = canvas.height = window.innerHeight;
+    lastX = window.innerWidth/2;
+    lastY = window.innerHeight/2;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    //EVENTS
-    // event for scaling
-    canvas.addEventListener('wheel', (e) => {
-      if (e.deltaY === 100 || e.deltaX === 100) {
-        scale *= scaleMultiplier
-      }
-      if (e.deltaY === -100 || e.deltaX === -100) {
-        scale /= scaleMultiplier
-      }
-    })
-    // events for dragging
-    canvas.addEventListener('mousedown', (e) => {
-      mouseDown = true;
-      startDragOffset.x = e.clientX - translatePos.x;
-      startDragOffset.y = e.clientY - translatePos.y
-    })
-    canvas.addEventListener('mouseup', () => mouseDown = false)
-    canvas.addEventListener('mouseover', () => mouseDown = false)
-    canvas.addEventListener('mousemove', (e) => {
-      if (mouseDown) {
-        translatePos.x = e.clientX - startDragOffset.x
-        translatePos.y = e.clientY - startDragOffset.y
-      }
-    })
-
-
-
-    ctx.translate(w/2, h/2);
+    ctx.translate(canvas.width/2, canvas.height/2)
+    ctx.scale(0.2, 0.2)
 
     sun.src = sunSrc;
     mercury.src = mercurySrc;
-    venus.src = venusSrc;
-    moon .src = moonSrc;
-    earth.src = earthSrc;
-    mars.src = marsSrc;
     jupiter.src = jupiterSrc;
-    saturn.src = saturnSrc;
-    uranus.src = uranusSrc;
-    neptune.src = neptuneSrc;
-    pluto.src = plutoSrc;
 
+    let zoom = (clicks: number) => {
+      let pt = ctx.transformedPoint(lastX, lastY);
+      let factor = Math.pow(scaleFactor, clicks);
+
+      console.log(pt)
+      ctx.translate(pt.x, pt.y);
+      ctx.scale(factor, factor);
+      ctx.translate(-pt.x, -pt.y);
+    };
+
+    let handleScroll = (e: WheelEvent) => {
+      let delta = e.deltaY > 0 ? -0.4 : 0.4
+      if (delta) zoom(delta);
+    };
+
+    // EVENTS
+    canvas.addEventListener('mousedown', (e) => {
+      lastX = e.offsetX || (e.pageX - canvas.offsetLeft);
+      lastY = e.offsetY || (e.pageY - canvas.offsetTop);
+      dragStart = ctx.transformedPoint(lastX, lastY);
+      dragged = false;
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      lastX = e.offsetX || (e.pageX - canvas.offsetLeft);
+      lastY = e.offsetY || (e.pageY - canvas.offsetTop);
+      dragged = true;
+
+      if (dragStart) {
+        let pt = ctx.transformedPoint(lastX, lastY);
+        ctx.translate(
+          pt.x - dragStart.x,
+          pt.y - dragStart.y
+        );
+      }
+    });
+    canvas.addEventListener('mouseup', (e) => {
+      dragStart = null;
+    });
+    canvas.addEventListener('wheel', (e) => handleScroll(e));
 
     Promise.all(planets)
-      .then(() => draw(ctx));
-  }
+      .then(() => window.requestAnimationFrame(() => draw(ctx)));
+  };
 
   const draw = (ctx: CanvasRenderingContext2D) => {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const currentTime = performance.now();
-    const elapsedTime = currentTime - lastFrameTime;
-    const motionIncrement = (speed * elapsedTime) / 1000;
-    lastFrameTime = currentTime;
+    const sunSize = 1392;
 
-    ctx.fillRect(-(w/2), -(h/2), w, h);
+    ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillRect(0, 0, w, h);
+    ctx.restore();
 
-    ctx.save()
-      ctx.translate(translatePos.x, translatePos.y)
-      ctx.scale(scale, scale)
-
-      console.log(scale)
-      const sunSize = 1390;
-
+    ctx.save();
       ctx.save();
+        rotate(0, 1, ctx)
         ctx.drawImage(sun, -sunSize/2, -sunSize/2, sunSize, sunSize);
       ctx.restore();
 
-      // mercury
       drawObject({
-        pos: 100,
+        pos: 800,
         size: 60,
         speed: {
           inner: 1,
@@ -143,43 +142,6 @@ export const useCanvas: CanvasHook = () => {
         object: mercury,
         ctx
       })
-
-      drawObject({
-        pos: 200,
-        size: 60,
-        speed: {
-          inner: 2,
-          outer: 2.5
-        },
-        offset: 0,
-        object: venus,
-        ctx
-      })
-
-      drawObject({
-        pos: 300,
-        size: 127,
-        speed: {
-          inner: 3,
-          outer: 3.5
-        },
-        offset: 0,
-        object: earth,
-        ctx
-      })
-      // 6
-      drawObject({
-        pos: 400,
-        size: 60,
-        speed: {
-          inner: 4,
-          outer: 4.5
-        },
-        offset: 0,
-        object: mars,
-        ctx
-      })
-
       drawObject({
         pos: 2500,
         size: 1398,
@@ -192,90 +154,14 @@ export const useCanvas: CanvasHook = () => {
         ctx
       })
 
-      // draw saturn separete because of WidthxHeight ratio
-      // drawObject({
-      //   pos: 600,
-      //   size: 60,
-      //   speed: {
-      //     inner: 0,
-      //     outer: 0
-      //   },
-      //   offset: 0,
-      //   object: saturn,
-      //   ctx
-      // })
-      const satW = 1164 * 2.073732;
-      const satH = 1164;
-
-      ctx.save();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-
-        ctx.beginPath();
-          ctx.arc(0, 0, 600, 0, Math.PI * 2);
-        ctx.stroke();
-
-        rotate(0, 1, ctx)
-
-        ctx.translate(0, 600)
-
-        ctx.save();
-        rotate(0, -1, ctx)
-          ctx.drawImage(saturn, -(satW/2), -(satH/2), satW, satH)
-        ctx.restore();
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-
-        ctx.beginPath();
-          ctx.fillRect(-(satH/2), 0, satH, satW/2)
-        ctx.fill();
-      ctx.restore();
-
-      // 9
-      drawObject({
-        pos: 700,
-        size: 507.2,
-        speed: {
-          inner: 0,
-          outer: 0
-        },
-        offset: 0,
-        object: uranus,
-        ctx
-      })
-
-      drawObject({
-        pos: 800,
-        size: 492.4,
-        speed: {
-          inner: 0,
-          outer: 0
-        },
-        offset: 0,
-        object: neptune,
-        ctx
-      })
-
-      drawObject({
-        pos: 900,
-        size: 60,
-        speed: {
-          inner: 0,
-          outer: 0
-        },
-        offset: 0,
-        object: pluto,
-        ctx
-      })
     ctx.restore();
-
-    position += motionIncrement;
     window.requestAnimationFrame(() => draw(ctx));
-  }
-
+  };
 
   const drawObject = ({size, pos, speed, offset, object, ctx }: DrawObjectProps) => {
     // Draw orbit
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 1';
 
     ctx.beginPath();
       ctx.arc(0, 0, pos, 0, Math.PI * 2)
@@ -300,12 +186,85 @@ export const useCanvas: CanvasHook = () => {
         ctx.arc(0, 0, size/2, 0, 180 * (Math.PI / 180));
       ctx.fill();
     ctx.restore();
-  }
+  };
 
   const rotate = (offset: number, speedMultiplier: number, ctx: CanvasRenderingContext2D) => {
     ctx.rotate(((position + offset) * speedMultiplier) * (Math.PI / 180));
-  }
+  };
 
+  const trackTransforms = (ctx: CanvasRenderingContext2D) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    let xform = svg.createSVGMatrix();
+    ctx.getTransform = () => xform;
+
+    let savedTransforms: DOMMatrix[] = [];
+    let save = ctx.save;
+    ctx.save = () => {
+      savedTransforms.push(xform.translate(0, 0));
+      return save.call(ctx);
+    };
+
+    let restore = ctx.restore;
+    ctx.restore = () => {
+      let form = savedTransforms.pop();
+      if (form) xform = form;
+
+      return restore.call(ctx);
+    };
+
+    let scale = ctx.scale;
+    ctx.scale = (sx: number, sy: number) => {
+      xform = xform.scale(sx, sy);
+      return  scale.call(ctx, sx, sy);
+    };
+
+    let rotate = ctx.rotate;
+    ctx.rotate = (radians) => {
+      xform.rotate(radians * 180 / Math.PI);
+      return rotate.call(ctx, radians);
+    };
+
+    let translate = ctx.translate;
+    ctx.translate = (dx: number, dy: number) => {
+      xform = xform.translate(dx, dy);
+      return translate.call(ctx, dx, dy);
+    };
+
+    let transform = ctx.transform;
+    ctx.transform = (a, b, c, d, e, f) => {
+      let m2 = svg.createSVGMatrix();
+
+      m2.a = a;
+      m2.b = b;
+      m2.c = c;
+      m2.d = d;
+      m2.e = e;
+      m2.f = f;
+
+      xform.multiply(m2);
+      return transform.call(ctx, a, b, c, d, e, f);
+    };
+
+    let setTransform = ctx.setTransform;
+    ctx.setTransform = (a, b, c, d, e, f) => {
+      xform.a = a;
+      xform.b = b;
+      xform.c = c;
+      xform.d = d;
+      xform.e = e;
+      xform.f = f;
+
+      return setTransform.call(ctx, a, b, c, d, e, f);
+    };
+
+    let pt = svg.createSVGPoint();
+    ctx.transformedPoint = (x, y) => {
+      pt.x = x;
+      pt.y = y;
+
+      return pt.matrixTransform(xform.inverse());
+    };
+  };
 
   return { init };
 }
